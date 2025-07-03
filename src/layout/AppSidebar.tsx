@@ -59,6 +59,11 @@ const navItems: NavItem[] = [
       { name: "404 Error", path: "/error-404", pro: false },
     ],
   },
+  {
+  icon: <UserCircleIcon />,
+  name: "Manage Staff",
+  path: "/manage-staff",
+},
 ];
 
 const othersItems: NavItem[] = [
