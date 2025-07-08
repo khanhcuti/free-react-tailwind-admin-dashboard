@@ -1,136 +1,144 @@
+import React, { useState } from "react";
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
-import ChartTab from "../common/ChartTab";
 
 export default function StatisticsChart() {
-  const options: ApexOptions = {
-    legend: {
-      show: false, // Hide legend
-      position: "top",
-      horizontalAlign: "left",
-    },
-    colors: ["#465FFF", "#9CB9FF"], // Define line colors
-    chart: {
-      fontFamily: "Outfit, sans-serif",
-      height: 310,
-      type: "line", // Set the chart type to 'line'
-      toolbar: {
-        show: false, // Hide chart toolbar
-      },
-    },
-    stroke: {
-      curve: "straight", // Define the line style (straight, smooth, or step)
-      width: [2, 2], // Line width for each dataset
-    },
+  const [timeRange, setTimeRange] = useState("3m");
 
-    fill: {
-      type: "gradient",
-      gradient: {
-        opacityFrom: 0.55,
-        opacityTo: 0,
-      },
-    },
-    markers: {
-      size: 0, // Size of the marker points
-      strokeColors: "#fff", // Marker border color
-      strokeWidth: 2,
-      hover: {
-        size: 6, // Marker size on hover
-      },
-    },
-    grid: {
-      xaxis: {
-        lines: {
-          show: false, // Hide grid lines on x-axis
-        },
-      },
-      yaxis: {
-        lines: {
-          show: true, // Show grid lines on y-axis
-        },
-      },
-    },
-    dataLabels: {
-      enabled: false, // Disable data labels
-    },
-    tooltip: {
-      enabled: true, // Enable tooltip
-      x: {
-        format: "dd MMM yyyy", // Format for x-axis tooltip
-      },
-    },
-    xaxis: {
-      type: "category", // Category-based x-axis
-      categories: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ],
-      axisBorder: {
-        show: false, // Hide x-axis border
-      },
-      axisTicks: {
-        show: false, // Hide x-axis ticks
-      },
-      tooltip: {
-        enabled: false, // Disable tooltip for x-axis points
-      },
-    },
-    yaxis: {
-      labels: {
-        style: {
-          fontSize: "12px", // Adjust font size for y-axis labels
-          colors: ["#6B7280"], // Color of the labels
-        },
-      },
-      title: {
-        text: "", // Remove y-axis title
-        style: {
-          fontSize: "0px",
-        },
-      },
-    },
+  type ShiftData = {
+    count: number;
+    shifts: string[];
+  };
+
+  const generateDetailedData = (range: string): ShiftData[] => {
+    const totalDays = range === "7d" ? 7 : range === "30d" ? 30 : 90;
+
+    return Array.from({ length: totalDays }, () => {
+      const hasMorning = Math.random() > 0.5;
+      const hasAfternoon = Math.random() > 0.5;
+      const shifts = [];
+      if (hasMorning) shifts.push("Ca sáng");
+      if (hasAfternoon) shifts.push("Ca chiều");
+
+      return {
+        count: shifts.length,
+        shifts,
+      };
+    });
+  };
+
+  const detailedData = generateDetailedData(timeRange);
+
+  const labels: Record<string, string[]> = {
+    "7d": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "30d": Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`),
+    "3m": Array.from({ length: 90 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (89 - i));
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    }),
   };
 
   const series = [
     {
-      name: "Sales",
-      data: [180, 190, 170, 160, 175, 165, 170, 205, 230, 210, 240, 235],
-    },
-    {
-      name: "Revenue",
-      data: [40, 30, 50, 40, 55, 40, 70, 100, 110, 120, 150, 140],
+      name: "Số ca làm",
+      data: detailedData.map((item) => item.count),
     },
   ];
+
+  const options: ApexOptions = {
+    chart: {
+      type: "area",
+      height: 310,
+      fontFamily: "Outfit, sans-serif",
+      toolbar: { show: false },
+    },
+    colors: ["#3B82F6", "#93C5FD"],
+    stroke: {
+      curve: "smooth",
+      width: 2,
+    },
+    fill: {
+      type: "gradient",
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.6,
+        opacityTo: 0.05,
+        stops: [0, 100],
+      },
+    },
+    dataLabels: { enabled: false },
+    markers: {
+      size: 0,
+      hover: { size: 5 },
+    },
+    xaxis: {
+      categories: labels[timeRange],
+      labels: {
+        show: true,
+        style: { colors: "#6B7280", fontSize: "12px" },
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      labels: {
+        style: { fontSize: "12px", colors: ["#6B7280"] },
+      },
+    },
+    tooltip: {
+      enabled: true,
+      custom: function ({ series, seriesIndex, dataPointIndex, w }) {
+        const day = labels[timeRange][dataPointIndex];
+        const shiftList = detailedData[dataPointIndex].shifts;
+        const content = shiftList.length > 0
+          ? shiftList.join(", ")
+          : "Không đăng ký ca";
+
+        return `<div class="p-2">
+          <strong>${day}</strong><br/>
+          ${content}
+        </div>`;
+      },
+    },
+    grid: {
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
+    },
+    legend: { show: false },
+  };
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
       <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
-        <div className="w-full">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Statistics
-          </h3>
-          <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            Target you’ve set for each month
-          </p>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Số ca làm</h3>
+          <p className="mt-1 text-gray-500 text-sm">Tổng số ca làm theo ngày</p>
         </div>
-        <div className="flex items-start w-full gap-3 sm:justify-end">
-          <ChartTab />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTimeRange("3m")}
+            className={`px-3 py-1 rounded-md text-sm ${timeRange === "3m" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
+          >
+            Last 3 months
+          </button>
+          <button
+            onClick={() => setTimeRange("30d")}
+            className={`px-3 py-1 rounded-md text-sm ${timeRange === "30d" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
+          >
+            Last 30 days
+          </button>
+          <button
+            onClick={() => setTimeRange("7d")}
+            className={`px-3 py-1 rounded-md text-sm ${timeRange === "7d" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
+          >
+            Last 7 days
+          </button>
         </div>
       </div>
 
       <div className="max-w-full overflow-x-auto custom-scrollbar">
-        <div className="min-w-[1000px] xl:min-w-full">
-          <Chart options={options} series={series} type="area" height={310} />
-        </div>
+        <Chart options={options} series={series} type="area" height={310} />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { Staff } from "../types/staff";
 const BASE_URL = "http://localhost:5001/api/v1/auth";
-
+// Lấy danh sách nhân viên
 export async function fetchStaffList(): Promise<Staff[]> {
   const res = await fetch(`${BASE_URL}/user`);
   const data = await res.json();

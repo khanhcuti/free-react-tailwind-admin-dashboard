@@ -64,6 +64,9 @@ export default function MonthlySalesChart() {
       title: {
         text: undefined,
       },
+      min: 0,
+      max: 80,
+      tickAmount: 4,
     },
     grid: {
       yaxis: {
@@ -88,7 +91,7 @@ export default function MonthlySalesChart() {
   const series = [
     {
       name: "Sales",
-      data: [168, 385, 201, 298, 187, 195, 291, 110, 215, 390, 280, 112],
+      data: [60, 64, 59, 61, 62, 60, 58, 63, 64, 59, 61, 62],
     },
   ];
   const [isOpen, setIsOpen] = useState(false);
