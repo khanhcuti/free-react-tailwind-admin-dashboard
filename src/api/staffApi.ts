@@ -1,6 +1,6 @@
 import { Staff } from "../types/staff";
 
-const BASE_URL = "http://localhost:5001";
+const BASE_URL = "http://localhost:8000";
 
 // 🛠 Hàm xử lý lỗi chung
 async function handleApiError(res: Response): Promise<never> {
