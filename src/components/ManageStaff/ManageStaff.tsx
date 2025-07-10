@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import {
-  fetchStaffList,
   createStaff,
-  updateStaff,
   deleteStaff,
+  getStaffById,
 } from "../../api/staffApi";
 import { Staff } from "../../types/staff";
 
@@ -23,41 +22,57 @@ export default function ManageStaff() {
     firstName: "",
     lastName: "",
   });
-  const [editingId, setEditingId] = useState<string | undefined>(undefined);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof Staff, string>>>({});
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { isOpen, openModal, closeModal } = useModal();
 
   useEffect(() => {
-    fetchStaffList().then(setStaffList);
+    loadStaffList();
   }, []);
+
+  const loadStaffList = async () => {
+    try {
+      const ids = [1, 2, 3]; // giả định nếu chưa có API getAll
+      const results = await Promise.allSettled(ids.map((id) => getStaffById(id)));
+      const validStaffs = results
+        .filter((r) => r.status === "fulfilled")
+        .map((r) => (r as PromiseFulfilledResult<Staff>).value);
+      setStaffList(validStaffs);
+    } catch {
+      setErrorMessage("Không thể tải danh sách nhân viên.");
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFieldErrors({ ...fieldErrors, [e.target.name]: undefined });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingId) {
-      await updateStaff({ ...formData, _id: editingId });
-    } else {
+    setErrorMessage(null);
+
+    try {
       await createStaff(formData as Staff);
+      await loadStaffList();
+      resetForm();
+    } catch (err: any) {
+      if (typeof err === "object" && !("message" in err)) {
+        setFieldErrors(err);
+      } else {
+        setErrorMessage(err.message || "Đã xảy ra lỗi.");
+      }
     }
-    const updatedList = await fetchStaffList();
-    setStaffList(updatedList);
-    resetForm();
   };
 
-  const handleEdit = (staff: Staff) => {
-    const { _id, ...rest } = staff;
-    setFormData(rest);
-    setEditingId(_id);
-    openModal();
-  };
-
-  const handleDelete = async (_id?: string) => {
-    if (!_id) return;
-    await deleteStaff(_id);
-    const updatedList = await fetchStaffList();
-    setStaffList(updatedList);
+  const handleDelete = async (id?: string) => {
+    if (!id) return;
+    try {
+      await deleteStaff(Number(id));
+      await loadStaffList();
+    } catch (err: any) {
+      setErrorMessage(err.message || "Xoá thất bại");
+    }
   };
 
   const resetForm = () => {
@@ -69,7 +84,8 @@ export default function ManageStaff() {
       firstName: "",
       lastName: "",
     });
-    setEditingId(undefined);
+    setFieldErrors({});
+    setErrorMessage(null);
     closeModal();
   };
 
@@ -91,50 +107,63 @@ export default function ManageStaff() {
         <div className="relative w-full p-4 overflow-y-auto bg-white rounded-3xl dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-              {editingId ? "Edit Staff Information" : "Add Staff Information"}
+              Add Staff Information
             </h4>
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
               Update staff details to keep the system up-to-date.
             </p>
+
+            {errorMessage && (
+              <div className="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+                {errorMessage}
+              </div>
+            )}
           </div>
+
           <form onSubmit={handleSubmit} className="flex flex-col">
             <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2 px-2">
-              <div>
-                <Label>Username</Label>
-                <Input name="username" value={formData.username} onChange={handleChange} />
-              </div>
-              <div>
-                <Label>Password</Label>
-                <Input name="password" type="password" value={formData.password} onChange={handleChange} />
-              </div>
-              <div>
-                <Label>Email</Label>
-                <Input name="email" value={formData.email} onChange={handleChange} />
-              </div>
-              <div>
-                <Label>Phone Number</Label>
-                <Input name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} />
-              </div>
-              <div>
-                <Label>First Name</Label>
-                <Input name="firstName" value={formData.firstName} onChange={handleChange} />
-              </div>
-              <div>
-                <Label>Last Name</Label>
-                <Input name="lastName" value={formData.lastName} onChange={handleChange} />
-              </div>
+              {[
+                { label: "Username", name: "username" },
+                { label: "Password", name: "password", type: "password" },
+                { label: "Email", name: "email" },
+                { label: "Phone Number", name: "phoneNumber" },
+                { label: "First Name", name: "firstName" },
+                { label: "Last Name", name: "lastName" },
+              ].map(({ label, name, type }) => (
+                <div key={name}>
+                  <Label>{label}</Label>
+                  <Input
+                    name={name}
+                    type={type || "text"}
+                    value={(formData as any)[name]}
+                    onChange={handleChange}
+                  />
+                  {fieldErrors[name as keyof Staff] && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {fieldErrors[name as keyof Staff]}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
+
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
               <Button size="sm" variant="outline" onClick={resetForm} type="button">
                 Close
               </Button>
               <Button size="sm" type="submit">
-                {editingId ? "Update" : "Save Changes"}
+                Save
               </Button>
             </div>
           </form>
         </div>
       </Modal>
+
+      {errorMessage && (
+        <div className="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+          {errorMessage}
+        </div>
+      )}
 
       <table className="min-w-full border">
         <thead>
@@ -155,13 +184,7 @@ export default function ManageStaff() {
               <td className="border px-4 py-2">{staff.phoneNumber}</td>
               <td className="border px-4 py-2">{staff.firstName}</td>
               <td className="border px-4 py-2">{staff.lastName}</td>
-              <td className="border px-4 py-2 flex gap-2">
-                <button
-                  onClick={() => handleEdit(staff)}
-                  className="text-blue-500 hover:underline"
-                >
-                  <Pencil size={16} />
-                </button>
+              <td className="border px-4 py-2">
                 <button
                   onClick={() => handleDelete(staff._id)}
                   className="text-red-500 hover:underline"
