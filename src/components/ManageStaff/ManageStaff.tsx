@@ -8,7 +8,8 @@ import Label from "../form/Label";
 import {
   createStaff,
   deleteStaff,
-  getStaffById,
+  getAllStaff,
+  updateStaff,
 } from "../../api/staffApi";
 import { Staff } from "../../types/staff";
 
@@ -22,6 +23,7 @@ export default function ManageStaff() {
     firstName: "",
     lastName: "",
   });
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof Staff, string>>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { isOpen, openModal, closeModal } = useModal();
@@ -32,12 +34,8 @@ export default function ManageStaff() {
 
   const loadStaffList = async () => {
     try {
-      const ids = [1, 2, 3]; // giả định nếu chưa có API getAll
-      const results = await Promise.allSettled(ids.map((id) => getStaffById(id)));
-      const validStaffs = results
-        .filter((r) => r.status === "fulfilled")
-        .map((r) => (r as PromiseFulfilledResult<Staff>).value);
-      setStaffList(validStaffs);
+      const results = await getAllStaff();
+      setStaffList(results);
     } catch {
       setErrorMessage("Không thể tải danh sách nhân viên.");
     }
@@ -51,16 +49,26 @@ export default function ManageStaff() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setFieldErrors({});
 
     try {
-      await createStaff(formData as Staff);
+      if (editingStaffId) {
+        await updateStaff(editingStaffId, formData);
+      } else {
+        await createStaff(formData as Staff);
+      }
+
       await loadStaffList();
       resetForm();
     } catch (err: any) {
-      if (typeof err === "object" && !("message" in err)) {
+      if (typeof err === "object" && err !== null && !("message" in err)) {
         setFieldErrors(err);
+      } else if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else if (typeof err === "string") {
+        setErrorMessage(err);
       } else {
-        setErrorMessage(err.message || "Đã xảy ra lỗi.");
+        setErrorMessage("Đã xảy ra lỗi không xác định.");
       }
     }
   };
@@ -68,11 +76,20 @@ export default function ManageStaff() {
   const handleDelete = async (id?: string) => {
     if (!id) return;
     try {
-      await deleteStaff(Number(id));
+      await deleteStaff(id);
       await loadStaffList();
     } catch (err: any) {
       setErrorMessage(err.message || "Xoá thất bại");
     }
+  };
+
+  const handleEdit = (staff: Staff) => {
+    const { _id, ...rest } = staff;
+    setFormData(rest);
+    setEditingStaffId(_id);
+    setFieldErrors({});
+    setErrorMessage(null);
+    openModal();
   };
 
   const resetForm = () => {
@@ -86,6 +103,7 @@ export default function ManageStaff() {
     });
     setFieldErrors({});
     setErrorMessage(null);
+    setEditingStaffId(null);
     closeModal();
   };
 
@@ -107,10 +125,12 @@ export default function ManageStaff() {
         <div className="relative w-full p-4 overflow-y-auto bg-white rounded-3xl dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-              Add Staff Information
+              {editingStaffId ? "Edit Staff" : "Add Staff Information"}
             </h4>
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
-              Update staff details to keep the system up-to-date.
+              {editingStaffId
+                ? "Update existing staff details."
+                : "Add a new staff member to the system."}
             </p>
 
             {errorMessage && (
@@ -152,7 +172,7 @@ export default function ManageStaff() {
                 Close
               </Button>
               <Button size="sm" type="submit">
-                Save
+                {editingStaffId ? "Update" : "Save"}
               </Button>
             </div>
           </form>
@@ -184,10 +204,16 @@ export default function ManageStaff() {
               <td className="border px-4 py-2">{staff.phoneNumber}</td>
               <td className="border px-4 py-2">{staff.firstName}</td>
               <td className="border px-4 py-2">{staff.lastName}</td>
-              <td className="border px-4 py-2">
+              <td className="border px-4 py-2 flex gap-2">
+                <button
+                  onClick={() => handleEdit(staff)}
+                  className="text-blue-600 hover:underline text-sm"
+                >
+                  Edit
+                </button>
                 <button
                   onClick={() => handleDelete(staff._id)}
-                  className="text-red-500 hover:underline"
+                  className="text-red-500 hover:underline text-sm"
                 >
                   <Trash2 size={16} />
                 </button>

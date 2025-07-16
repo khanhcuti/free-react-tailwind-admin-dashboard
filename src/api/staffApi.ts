@@ -1,6 +1,6 @@
 import { Staff } from "../types/staff";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = "http://localhost:5001";
 
 // 🛠 Hàm xử lý lỗi chung
 async function handleApiError(res: Response): Promise<never> {
@@ -25,42 +25,62 @@ async function handleApiError(res: Response): Promise<never> {
 
 // 🟢 1. Đăng ký nhân viên mới
 export async function createStaff(staff: Staff): Promise<Staff> {
-  const res = await fetch(`${BASE_URL}/register`, {
+  const res = await fetch("http://localhost:5001/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(staff),
   });
 
-  if (!res.ok) await handleApiError(res);
+  if (!res.ok) {
+    const err = await res.json();
+
+    // 👉 Nếu backend trả detail là object (field errors), ném nguyên object
+    if (typeof err.detail === "object") throw err.detail;
+
+    // 👉 Nếu backend trả lỗi là chuỗi
+    if (typeof err.detail === "string") throw new Error(err.detail);
+
+    throw new Error("Lỗi không xác định khi tạo nhân viên.");
+  }
 
   const data = await res.json();
   return data.data?.user ?? data;
 }
 
-// 🟢 2. Lấy thông tin nhân viên theo ID
-export async function getStaffById(id: number): Promise<Staff> {
+
+/* 🟢 2. Lấy thông tin nhân viên theo ID
+export async function getStaffById(id: String): Promise<Staff> {
   const res = await fetch(`${BASE_URL}/read/${id}`);
   if (!res.ok) await handleApiError(res);
   const data = await res.json();
   return data;
-}
+} */
 
+export async function getAllStaff(): Promise<Staff[]> {
+  const res = await fetch(`${BASE_URL}/getall`);
+  if (!res.ok) await handleApiError(res);
+  const data = await res.json();
+  return data;
+}
 // 🟢 3. Cập nhật mật khẩu nhân viên
-export async function updatePassword(employeeId: number, newPassword: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/update-password/${employeeId}`, {
+// 🟢 Cập nhật toàn bộ thông tin nhân viên
+export async function updateStaff(employeeId: string, updatedData: Partial<Staff>): Promise<void> {
+  const res = await fetch(`${BASE_URL}/update/${employeeId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: newPassword }),
+    body: JSON.stringify(updatedData),
   });
 
   if (!res.ok) await handleApiError(res);
 }
 
+
 // 🟢 4. Xoá nhân viên theo ID
-export async function deleteStaff(id: number): Promise<void> {
+export async function deleteStaff(id: String): Promise<void> {
   const res = await fetch(`${BASE_URL}/delete/${id}`, {
     method: "DELETE",
   });
 
   if (!res.ok) await handleApiError(res);
 }
+
